@@ -19,20 +19,24 @@ services:
         test: curl -s http://localhost:9200 | grep -q 'missing authentication credentials'
         interval: 10s
         timeout: 10s
+    # command: > 
+    #   bash -c '
+    #     echo "Setting kibana_system password";
+    #     until curl -s -X POST -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://elasticsearch:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
+    #     echo "All done!
+    #   '
       
   setup-kibana-password:
     image: alpine
     networks:
       - elastic
     command: >
-      sh -c "
-      apk --no-cache add curl &&
-      curl --location 'http://elasticsearch:9200/_security/user/kibana_system/_password' \
-      --header 'Content-Type: application/json' \
-      --header 'Authorization: Basic ZWxhc3RpYzpkZXZlbG9wQDEyMzQ=' \
-      --data-raw '{
-          \"password\": \"kibana@1234\"
-      }'"
+      sh -c '
+        apk --no-cache add curl &&
+        curl -s -X POST -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" \
+        http://elasticsearch:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" \
+        | grep -q "^{}"
+      '
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -56,7 +60,8 @@ services:
       timeout: 10s
       retries: 5
     depends_on:
-      - setup-kibana-password
+      elasticsearch:
+        condition: service_healthy
 
 volumes:
   esdata:
