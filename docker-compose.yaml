@@ -1,6 +1,7 @@
 version: "2.2"
 
 services:
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.10.4
     container_name: infra-elasticsearch
@@ -18,10 +19,49 @@ services:
         test: curl -s http://localhost:9200 | grep -q 'missing authentication credentials'
         interval: 10s
         timeout: 10s
-        retries: 5
+      
+  setup-kibana-password:
+    image: alpine
+    networks:
+      - elastic
+    command: >
+      sh -c "
+      apk --no-cache add curl &&
+      curl --location 'http://elasticsearch:9200/_security/user/kibana_system/_password' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Basic ZWxhc3RpYzpkZXZlbG9wQDEyMzQ=' \
+      --data-raw '{
+          \"password\": \"kibana@1234\"
+      }'"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.4
+    container_name: infra-kibana
+    volumes:
+      - kibanadata:/usr/share/kibana/data
+    ports:
+      - 5601:5601
+    networks:
+      - elastic
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+    healthcheck:
+      test: curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - setup-kibana-password
 
 volumes:
   esdata:
+    driver: local
+  kibanadata:
     driver: local
 
 networks:

@@ -15,3 +15,10 @@ Elasticsearch: http://localhost:9200
 wsl -d docker-desktop
 sysctl -w vm.max_map_count=262144
 ```
+
+## Create Kibana Token
+
+```bash
+docker-compose exec -it elasticsearch bash
+bin/elasticsearch-create-enrollment-token -s kibana
+```
